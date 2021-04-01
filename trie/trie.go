@@ -8,7 +8,6 @@ import (
 	// "github.com/ethereum/go-ethereum/rlp"
 )
 
-// Tree todo
 type Tree struct {
 	db map[common.Hash]node
 
