@@ -3,6 +3,8 @@ package trie
 import (
 	"reflect"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func Test_sliceBuffer_Write(t *testing.T) {
@@ -91,7 +93,7 @@ func Test_hasher_hash(t *testing.T) {
 		name string
 		h    *hasher
 		args args
-		want hashNode
+		want common.Hash
 	}{
 		// TODO: Add test cases.
 	}
@@ -112,7 +114,7 @@ func Test_hasher_hashData(t *testing.T) {
 		name string
 		h    *hasher
 		args args
-		want hashNode
+		want common.Hash
 	}{
 		// TODO: Add test cases.
 	}

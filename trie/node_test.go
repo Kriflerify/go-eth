@@ -1,44 +1,15 @@
 package trie
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 )
-
-type vnode []byte
-
-func TestNodeHashing(t *testing.T) {
-	h := hasherPool.Get().(*hasher)
-	h.parallel = true
-	h.tmp.Reset()
-
-	// b := new(bytes.Buffer)
-
-	tests := []node{
-		{},
-		{Val: []byte{6}},
-		{Children: [17]hashNode{hashNode([]byte{1})}, Val: []byte{6}},
-	}
-
-	for _, test := range tests {
-		reflection := reflect.ValueOf(test)
-		reflectionValueType := reflection.Type()
-		rlpEncoding, _ := rlp.EncodeToBytes(test)
-		hash := common.BytesToHash(test.Encode())
-		_ = hash
-		_ = rlpEncoding
-		// t.Log(hash)
-		// t.Log(rlpEncoding)
-		t.Log(reflection)
-		t.Log(reflectionValueType)
-	}
-}
 
 func unhex(str string) []byte {
 	b, err := hex.DecodeString(strings.Replace(str, " ", "", -1))
@@ -53,19 +24,42 @@ func tohex(data []byte) string {
 	return b
 }
 
-func Test_node_Encode(t *testing.T) {
-	tests := []struct {
-		name string
-		n    *node
-		want hashNode
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.n.Encode(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("node.Encode() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+// Playing around with RLP Encoding:
+// The RLP Encoding of an extension Node and a leaf Node may be equal
+// This is why the path-key includes information about the type of node
+func TestRLP(t *testing.T) {
+	en := extensionNode{Key: []byte{1}, Extension: common.BytesToHash(bytes.Repeat([]byte{1}, 32))}
+	ln := leafNode{Key: []byte{2}, Value: bytes.Repeat([]byte{1}, 32)}
+
+	w1 := make(sliceBuffer, 0, 550)
+	w2 := make(sliceBuffer, 0, 550)
+
+	rlp.Encode(&w1, en)
+	rlp.Encode(&w2, ln)
+
+	t.Log(w1)
+	t.Log(w2)
+
+	r1 := bytes.NewReader(w1)
+	r2 := bytes.NewReader(w2)
+
+	enr := extensionNode{}
+	lnr := leafNode{}
+	rlp.Decode(r1, &enr)
+	rlp.Decode(r2, &lnr)
+	t.Log(enr)
+	t.Log(lnr)
+
+	r1.Reset(w1)
+	r2.Reset(w2)
+	enr = extensionNode{}
+	lnr = leafNode{}
+	rlp.Decode(r2, &enr)
+	rlp.Decode(r1, &lnr)
+	t.Log(enr)
+	t.Log(lnr)
+
+	t.Fail()
 }
+
+// TODO: Copy all tests from go-ethereum

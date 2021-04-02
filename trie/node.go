@@ -1,15 +1,25 @@
 package trie
 
-type hashNode []byte
+import "github.com/ethereum/go-ethereum/common"
 
-type node struct {
-	Children [17]hashNode
-	Val      []byte
+type node interface {
+	// TODO Dummy method to make node interface more specific
 }
 
-// turns a node into a hash
-func (n *node) Encode() hashNode {
-	hasher := newHasher(false)
-	hashed := hasher.hash(*n)
-	return hashed
-}
+//TODO capital cases/ small cases of struct fields ???
+type (
+	branchNode struct {
+		Children [16]node
+		Val      []byte
+	}
+	extensionNode struct {
+		Key       []byte
+		Extension common.Hash
+	}
+	leafNode struct {
+		Key   []byte
+		Value []byte
+	}
+)
+
+var nilValueNode = []byte(nil)

@@ -3,6 +3,7 @@ package trie
 import (
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
@@ -49,16 +50,16 @@ func returnHasherToPool(h *hasher) {
 
 // hash collapses a node down into a hash node, also returning a copy of the
 // original node initialized with the computed hash to replace the original one.
-func (h *hasher) hash(n node) hashNode {
+func (h *hasher) hash(n node) common.Hash {
 	rlp.Encode(&h.tmp, n)
 
-	hashed := h.hashData(h.tmp)
+	hashed := common.BytesToHash(h.hashData(h.tmp))
 	return hashed
 }
 
 // hashData hashes the provided data
-func (h *hasher) hashData(data []byte) hashNode {
-	n := make(hashNode, 32)
+func (h *hasher) hashData(data []byte) []byte {
+	n := make([]byte, 32)
 	h.sha.Reset()
 	h.sha.Write(data)
 	h.sha.Read(n)

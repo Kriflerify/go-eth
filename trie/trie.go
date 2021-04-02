@@ -1,94 +1,112 @@
 package trie
 
-import (
-	"bytes"
-	"errors"
+// import (
+//  	"bytes"
+//  	"errors"
 
-	"github.com/ethereum/go-ethereum/common"
-	// "github.com/ethereum/go-ethereum/rlp"
-)
+// 	"github.com/ethereum/go-ethereum/common"
+// 	// "github.com/ethereum/go-ethereum/rlp"
+// )
 
-type Tree struct {
-	db map[common.Hash]node
+// type Tree struct {
+// 	db map[common.Hash]node
 
-	root common.Hash
-}
+// 	root   common.Hash
+// 	hasher *hasher
+// }
 
-// Update associates key with value.
-func (t *Tree) Update(key, value []byte) error {
-	k := keybytesToHex(key)
+// func newTree(parallel bool) *Tree {
 
-	rootNode := t.db[t.root]
+// 	t := new(Tree)
+// 	t.hasher = newHasher(parallel)
+// 	t.db = make(map[common.Hash]node)
 
-	newRoot, err := t.insert(rootNode, []byte{}, k, value)
+// 	t.encodeAndStore(nilValueNode)
+// 	return t
+// }
 
-	delete(t.db, t.root)
+// // enocdeAndStore calculates the hash of a given node and adds it to the database of tree
+// func (t *Tree) encodeAndStore(n node) common.Hash {
+// 	hashed := t.hasher.hash(n)
+// 	t.db[hashed] = n
+// 	return hashed
+// }
 
-	newRootHash := newRoot.Encode()
-	t.db[common.BytesToHash(newRootHash)] = newRoot
-	t.root = common.BytesToHash(newRootHash)
-	return err
-}
+// // Update associates key with value.
+// func (t *Tree) Update(key, value []byte) error {
+// 	k := keybytesToHex(key)
 
-func (t *Tree) insert(n node, prefix []byte, key []byte, value []byte) (node, error) {
-	if len(key) == 0 {
-		return node{}, errors.New("non-terminated String")
-	} else if bytes.Equal(key, []byte{16}) {
-		// Key termination symbol
-		n.Val = value
-		return n, nil
-	}
+// 	rootNode := t.db[t.root]
 
-	a := key[0]
-	key = key[1:]
-	prefix = append(prefix, a)
+// 	newRoot, err := t.insert(rootNode, []byte{}, k, value)
 
-	var child node
+// 	delete(t.db, t.root)
 
-	childHash := n.Children[a]
+// 	newRootHash := newRoot.Encode()
+// 	t.db[common.BytesToHash(newRootHash)] = newRoot
+// 	t.root = common.BytesToHash(newRootHash)
+// 	return err
+// }
 
-	if childHash != nil {
-		child = t.db[common.BytesToHash(childHash)]
-	} else {
-		child = node{Children: [17]hashNode{}}
-	}
+// func (t *Tree) insert(n node, prefix []byte, key []byte, value []byte) (node, error) {
+// 	if len(key) == 0 {
+// 		return node{}, errors.New("non-terminated String")
+// 	} else if bytes.Equal(key, []byte{16}) {
+// 		// Key termination symbol
+// 		n.Val = value
+// 		return n, nil
+// 	}
 
-	newChild, err := t.insert(child, prefix, key, value)
-	if err != nil {
-		return n, err
-	}
-	newChildHash := newChild.Encode()
-	t.db[common.BytesToHash(newChildHash)] = newChild
-	n.Children[a] = newChildHash
+// 	a := key[0]
+// 	key = key[1:]
+// 	prefix = append(prefix, a)
 
-	delete(t.db, common.BytesToHash(childHash))
+// 	var child node
 
-	return n, nil
+// 	childHash := n.Children[a]
 
-}
+// 	if childHash != nil {
+// 		child = t.db[common.BytesToHash(childHash)]
+// 	} else {
+// 		child = node{Children: [17]hashNode{}}
+// 	}
 
-// TryGet retrieves the value associated with key
-func (t *Tree) TryGet(key []byte) ([]byte, error) {
-	k := keybytesToHex(key)
-	root := t.db[t.root]
-	return t.tryGet(root, k, 0)
-}
+// 	newChild, err := t.insert(child, prefix, key, value)
+// 	if err != nil {
+// 		return n, err
+// 	}
+// 	newChildHash := newChild.Encode()
+// 	t.db[common.BytesToHash(newChildHash)] = newChild
+// 	n.Children[a] = newChildHash
 
-func (t *Tree) tryGet(n node, key []byte, pos int) (value []byte, err error) {
-	if len(key) == 0 {
-		return []byte{}, nil
-	} else if bytes.Equal(key, []byte{16}) {
-		return n.Val, nil
-	}
+// 	delete(t.db, common.BytesToHash(childHash))
 
-	a := key[0]
-	childHash := n.Children[a]
-	if childHash == nil {
-		return nil, errors.New("key not found")
-	}
+// 	return n, nil
 
-	key = key[1:]
+// }
 
-	child := t.db[common.BytesToHash(childHash)]
-	return t.tryGet(child, key, pos+1)
-}
+// // TryGet retrieves the value associated with key
+// func (t *Tree) TryGet(key []byte) ([]byte, error) {
+// 	k := keybytesToHex(key)
+// 	root := t.db[t.root]
+// 	return t.tryGet(root, k, 0)
+// }
+
+// func (t *Tree) tryGet(n node, key []byte, pos int) (value []byte, err error) {
+// 	if len(key) == 0 {
+// 		return []byte{}, nil
+// 	} else if bytes.Equal(key, []byte{16}) {
+// 		return n.Val, nil
+// 	}
+
+// 	a := key[0]
+// 	childHash := n.Children[a]
+// 	if childHash == nil {
+// 		return nil, errors.New("key not found")
+// 	}
+
+// 	key = key[1:]
+
+// 	child := t.db[common.BytesToHash(childHash)]
+// 	return t.tryGet(child, key, pos+1)
+// }
