@@ -25,7 +25,10 @@ func newTree(parallel bool) *Tree {
 	t.hasher = newHasher(parallel)
 	t.db = make(map[common.Hash]node)
 
-	t.nilValueNodeHash = t.encodeAndStore(nilValueNode)
+	root := t.encodeAndStore(branchNode{})
+	t.root = root
+
+	t.nilValueNodeHash = t.hasher.hash(nilValueNode)
 
 	return t
 }
@@ -45,8 +48,8 @@ func (t *Tree) Update(key, value []byte) error {
 	if err != nil {
 		return err
 	}
-	t.root = newRoot
 	delete(t.db, t.root)
+	t.root = newRoot
 	return nil
 }
 
@@ -122,6 +125,7 @@ func (t *Tree) insert(h common.Hash, prefix []byte, key []byte, value []byte) (c
 		// (1) extension Node -> (2) branchNode -> {(3) Leaf node, (4) Leaf node}
 		// (4) is evtl. omitted by set (2).Val
 		n2 := branchNode{}
+
 		if len(nKey) == prefixLen+1 {
 			n2.Value = n.Value
 			n3 := leafNode{hexToCompact(key[prefixLen:]), value}
@@ -142,12 +146,18 @@ func (t *Tree) insert(h common.Hash, prefix []byte, key []byte, value []byte) (c
 		}
 
 		n2hash := t.encodeAndStore(n2)
-		n1 := extensionNode{Key: hexToCompact(key[:prefixLen]),
-			Extension: n2hash,
+
+		if prefixLen == 0 {
+			delete(t.db, h)
+			return n2hash, nil
+		} else {
+			n1 := extensionNode{Key: hexToCompact(key[:prefixLen]),
+				Extension: n2hash,
+			}
+			n1hash := t.encodeAndStore(n1)
+			delete(t.db, h)
+			return n1hash, nil
 		}
-		n1hash := t.encodeAndStore(n1)
-		delete(t.db, h)
-		return n1hash, nil
 	}
 	return h, errors.New("unexpected node type")
 }
@@ -180,14 +190,16 @@ func (t *Tree) tryGet(h common.Hash, key []byte, pos int) (value []byte, err err
 		}
 		return t.tryGet(aNode, key[1:], pos+1)
 	case leafNode:
-		if bytes.Equal(key, []byte{16}) {
+		if bytes.Equal(key, compactToHex(n.Key)) {
 			return n.Value, nil
 		}
 		return nil, errors.New("key not found")
 	case extensionNode:
-		if prefixLen := prefixLen(key, n.Key); prefixLen == len(n.Key) {
+		nKey := compactToHex(n.Key)
+		if prefixLen := prefixLen(key, nKey); prefixLen == len(nKey) {
 			return t.tryGet(n.Extension, key[prefixLen:], pos+prefixLen)
 		}
+		return nil, errors.New("key not found")
 	}
 	return nil, errors.New("unexpected node")
 }

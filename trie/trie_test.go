@@ -22,15 +22,15 @@ func TestUpdate(t *testing.T) {
 		{key: []byte("cat"), val: []byte("doge")},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		T.Update(test.key, test.val)
 
 		got, err := T.TryGet(test.key)
 		if err != nil {
-			t.Log(err)
+			t.Error(err)
 		}
 		if !bytes.Equal(got, test.val) {
-			t.Errorf("inserted %#X  %#X, got %#X", test.key, test.val, got)
+			t.Errorf("%d) inserted %#X  %#X, got %#X", i, test.key, test.val, got)
 		}
 	}
 }
