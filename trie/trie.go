@@ -47,11 +47,12 @@ func (t *Tree) Update(key, value []byte) error {
 	}
 	t.root = newRoot
 	delete(t.db, t.root)
+	return nil
 }
 
 func (t *Tree) insert(h common.Hash, prefix []byte, key []byte, value []byte) (common.Hash, error) {
 
-	if _, ok := t.db[h]; h == t.nilValueNodeHash || !ok {
+	if _, ok := t.db[h]; (h == common.Hash{}) || h == t.nilValueNodeHash || !ok {
 		n := leafNode{hexToCompact(key), value}
 		newHash := t.encodeAndStore(n)
 		return newHash, nil
@@ -122,12 +123,12 @@ func (t *Tree) insert(h common.Hash, prefix []byte, key []byte, value []byte) (c
 		// (4) is evtl. omitted by set (2).Val
 		n2 := branchNode{}
 		if len(nKey) == prefixLen+1 {
-			n2.Val = n.Value
+			n2.Value = n.Value
 			n3 := leafNode{hexToCompact(key[prefixLen:]), value}
 			n3hash := t.encodeAndStore(n3)
 			n2.Children[key[prefixLen]] = n3hash
 		} else if len(key) == prefixLen+1 {
-			n2.Val = value
+			n2.Value = value
 			n4 := leafNode{hexToCompact(nKey[prefixLen:]), n.Value}
 			n4hash := t.encodeAndStore(n4)
 			n2.Children[nKey[prefixLen]] = n4hash
@@ -148,7 +149,7 @@ func (t *Tree) insert(h common.Hash, prefix []byte, key []byte, value []byte) (c
 		delete(t.db, h)
 		return n1hash, nil
 	}
-
+	return h, errors.New("unexpected node type")
 }
 
 // TryGet retrieves the value associated with key
@@ -158,32 +159,35 @@ func (t *Tree) TryGet(key []byte) ([]byte, error) {
 }
 
 func (t *Tree) tryGet(h common.Hash, key []byte, pos int) (value []byte, err error) {
-	
-	switch n := t.db[h].(type) {
-	case branchNode:
-		if bytes.Equal(key, []byte{16}) {
-			return n.Value
-		}
+	if (h == common.Hash{}) || (h == t.nilValueNodeHash) {
+		return nil, errors.New("key not found")
 	}
-	
-	if bytes.Equal(key, []byte{16}) {
-		_, isBranch
-		if 
-	}
-	if len(key) == 0 {
-		return []byte{}, nil
-	} else if bytes.Equal(key, []byte{16}) {
-		return n.Val, nil
-	}
-
-	a := key[0]
-	childHash := n.Children[a]
-	if childHash == nil {
+	n, inDb := t.db[h]
+	if !inDb {
 		return nil, errors.New("key not found")
 	}
 
-	key = key[1:]
-
-	child := t.db[common.BytesToHash(childHash)]
-	return t.tryGet(child, key, pos+1)
+	// key shold have at least a Termination symbol at the end
+	a := key[0]
+	switch n := n.(type) {
+	case branchNode:
+		if bytes.Equal(key, []byte{16}) {
+			return n.Value, nil
+		}
+		aNode := n.Children[a]
+		if (aNode == common.Hash{}) || (aNode == t.nilValueNodeHash) {
+			return nil, errors.New("key not found")
+		}
+		return t.tryGet(aNode, key[1:], pos+1)
+	case leafNode:
+		if bytes.Equal(key, []byte{16}) {
+			return n.Value, nil
+		}
+		return nil, errors.New("key not found")
+	case extensionNode:
+		if prefixLen := prefixLen(key, n.Key); prefixLen == len(n.Key) {
+			return t.tryGet(n.Extension, key[prefixLen:], pos+prefixLen)
+		}
+	}
+	return nil, errors.New("unexpected node")
 }
