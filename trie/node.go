@@ -6,11 +6,10 @@ type node interface {
 	// optional: Dummy method to make node interface more specific
 }
 
-//TODO capital cases/ small cases of struct fields ???
 type (
 	branchNode struct {
 		Children [16]common.Hash
-		Value      []byte
+		Value    []byte
 	}
 	extensionNode struct {
 		Key       []byte
