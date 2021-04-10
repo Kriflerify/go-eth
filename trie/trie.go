@@ -34,9 +34,12 @@ func newTree(parallel bool) *Tree {
 
 // enocdeAndStore calculates the hash of a given node and adds it to the database of tree
 func (t *Tree) encodeAndStore(n node) common.Hash {
-	hashed := t.hasher.hash(n)
-	t.db[hashed] = n
-	return hashed
+	if n != nil {
+		hashed := t.hasher.hash(n)
+		t.db[hashed] = n
+		return hashed
+	}
+	return t.nilValueNodeHash
 }
 
 // Update associates key with value.
@@ -219,7 +222,7 @@ func (t *Tree) Delete(key []byte) error {
 func (t *Tree) delete(h common.Hash, key []byte) (node, error) {
 	n, ok := t.db[h]
 	if (h == common.Hash{}) || (h == t.nilValueNodeHash) || !ok {
-		return nil, errors.New("trying to delete a a nexisting key")
+		return nil, errors.New("trying to delete a nonexisting key")
 	}
 
 	switch n := n.(type) {
