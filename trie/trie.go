@@ -34,12 +34,12 @@ func newTree(parallel bool) *Tree {
 
 // enocdeAndStore calculates the hash of a given node and adds it to the database of tree
 func (t *Tree) encodeAndStore(n node) common.Hash {
-	if n != nil {
-		hashed := t.hasher.hash(n)
-		t.db[hashed] = n
-		return hashed
+	if n == nil {
+		return t.nilValueNodeHash
 	}
-	return t.nilValueNodeHash
+	hashed := t.hasher.hash(n)
+	t.db[hashed] = n
+	return hashed
 }
 
 // Update associates key with value.
@@ -126,9 +126,9 @@ func (t *Tree) insert(h common.Hash, prefix []byte, key []byte, value []byte) (c
 			return newHash, nil
 		}
 
-		// two leafnodes with different are replaced by:
+		// two leafnodes with different prefixes are replaced by:
 		// (1) extension Node -> (2) branchNode -> {(3) Leaf node, (4) Leaf node}
-		// (4) is evtl. omitted by set (2).Val
+		// (4)/(3) is omitted when possible by setting (2).Val; (1) is omitted if prefixLen==0
 		n2 := branchNode{}
 
 		if len(nKey) == prefixLen+1 {
@@ -220,8 +220,11 @@ func (t *Tree) Delete(key []byte) error {
 }
 
 func (t *Tree) delete(h common.Hash, key []byte) (node, error) {
+	if (h == common.Hash{}) || (h == t.nilValueNodeHash) {
+		return nil, errors.New("trying to delete a nonexisting key")
+	}
 	n, ok := t.db[h]
-	if (h == common.Hash{}) || (h == t.nilValueNodeHash) || !ok {
+	if !ok {
 		return nil, errors.New("trying to delete a nonexisting key")
 	}
 
@@ -229,11 +232,21 @@ func (t *Tree) delete(h common.Hash, key []byte) (node, error) {
 	case branchNode:
 		if bytes.Equal(key, []byte{16}) {
 			n.Value = nil
-			if onlyChild, yes := t.hasOnlyChild(n); yes {
+			if i, yes := t.hasOnlyChild(n); yes {
+				onlyChild := n.Children[i]
 				child := t.db[onlyChild]
 				delete(t.db, onlyChild)
 				delete(t.db, h)
-				return child, nil
+				switch child := child.(type) {
+				case extensionNode:
+					newKey := append([]byte{i}, compactToHex(child.Key)...)
+					child.Key = hexToCompact(newKey)
+					return child, nil
+				case leafNode:
+					newKey := append([]byte{i}, compactToHex(child.Key)...)
+					child.Key = hexToCompact(newKey)
+					return child, nil
+				}
 			}
 			delete(t.db, h)
 			return n, nil
@@ -251,12 +264,24 @@ func (t *Tree) delete(h common.Hash, key []byte) (node, error) {
 				return nil, nil
 			}
 
-			if onlyChild, yes := t.hasOnlyChild(n); yes {
+			if i, yes := t.hasOnlyChild(n); yes {
+				onlyChild := n.Children[i]
 				child := t.db[onlyChild]
 				delete(t.db, onlyChild)
 				delete(t.db, h)
-				return child, nil
+				switch child := child.(type) {
+				case extensionNode:
+					newKey := append([]byte{i}, compactToHex(child.Key)...)
+					child.Key = hexToCompact(newKey)
+					return child, nil
+				case leafNode:
+					newKey := append([]byte{i}, compactToHex(child.Key)...)
+					child.Key = hexToCompact(newKey)
+					return child, nil
+				}
 			}
+			delete(t.db, h)
+			return n, nil
 		}
 
 		n.Children[key[0]] = t.encodeAndStore(newChild)
@@ -264,6 +289,7 @@ func (t *Tree) delete(h common.Hash, key []byte) (node, error) {
 		return n, nil
 	case leafNode:
 		if nKey := compactToHex(n.Key); bytes.Equal(nKey, key) {
+			delete(t.db, h)
 			return nil, nil
 		}
 		return n, errors.New("trying to delete a nonexisting key")
@@ -290,13 +316,18 @@ func (t *Tree) delete(h common.Hash, key []byte) (node, error) {
 		case extensionNode:
 			combinedKey := append(nKey, compactToHex(newChild.Key)...)
 			newChild.Key = hexToCompact(combinedKey)
+			delete(t.db, h)
+			return newChild, nil
 		case leafNode:
 			combinedKey := append(nKey, compactToHex(newChild.Key)...)
 			newChild.Key = hexToCompact(combinedKey)
+			delete(t.db, h)
+			return newChild, nil
 		}
 
+		n.Extension = t.encodeAndStore(newChild)
 		delete(t.db, h)
-		return newChild, nil
+		return n, nil
 	}
 	return common.Hash{}, errors.New("tree error: unrecognizable node type")
 }
@@ -313,19 +344,19 @@ func (t *Tree) isEmptyBranchNode(n branchNode) bool {
 	return true
 }
 
-func (t *Tree) hasOnlyChild(n branchNode) (common.Hash, bool) {
+func (t *Tree) hasOnlyChild(n branchNode) (byte, bool) {
 	i := -1
-	if bytes.Equal(n.Value, []byte{}) {
-		return common.Hash{}, false
+	if !bytes.Equal(n.Value, []byte{}) {
+		return byte(16), false
 	}
 	for j, c := range n.Children {
 		if (c != common.Hash{}) && (c != t.nilValueNodeHash) {
 			if i == -1 {
 				i = j
 			} else {
-				return common.Hash{}, false
+				return byte(16), false
 			}
 		}
 	}
-	return n.Children[i], true
+	return byte(i), true
 }

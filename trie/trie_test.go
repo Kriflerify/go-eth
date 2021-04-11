@@ -57,6 +57,10 @@ func TestDelete(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+		_, err2 := T.TryGet(test.key)
+		if err2 != nil {
+			t.Logf("Insertion of %#X was not succesfull: %#v", test.key, err2)
+		}
 	}
 
 	rand.Seed(time.Now().UnixNano())
