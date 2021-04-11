@@ -19,6 +19,8 @@ type Tree struct {
 	nilValueNodeHash common.Hash
 }
 
+//TODO valueNode, would allow empty values
+
 // NewTree constructs a tree with a map as db and sets nilValueNode
 func NewTree(parallel bool) *Tree {
 
