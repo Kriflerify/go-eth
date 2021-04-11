@@ -7,10 +7,61 @@ import (
 	"time"
 )
 
-// TODO: Write tests analog to go-ethereum
+func TestNull(t *testing.T) {
+	tree := NewTree(true)
+	key := make([]byte, 32)
+	value := []byte("test")
+	tree.Update(key, value)
+	got, err := tree.TryGet(key)
+	if err != nil {
+		t.Error(err)
+	}
+	if !bytes.Equal(got, value) {
+		t.Fatal("wrong value")
+	}
+}
+func TestEmptyValues(t *testing.T) {
+	tree := NewTree(true)
 
-func TestUpdate(t *testing.T) {
-	T := newTree(true)
+	vals := []struct{ k, v string }{
+		{"do", "verb"},
+		{"ether", "wookiedoo"},
+		{"horse", "stallion"},
+		{"shaman", "horse"},
+		{"doge", "coin"},
+		{"ether", ""},
+		{"dog", "puppy"},
+		{"shaman", ""},
+	}
+	for _, val := range vals {
+		updateString(tree, val.k, val.v)
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(vals), func(i, j int) {
+		vals[i], vals[j] = vals[j], vals[i]
+	})
+
+	for _, val := range vals {
+		got, err := getString(tree, val.k)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if got != val.v {
+			t.Errorf("Inserted %s -> %s, got %s", val.k, val.v, got)
+		}
+	}
+}
+
+func TestLargeValue(t *testing.T) {
+	tree := NewTree(true)
+	tree.Update([]byte("key1"), []byte{99, 99, 99, 99})
+	tree.Update([]byte("key2"), bytes.Repeat([]byte{1}, 32))
+}
+
+func TestUpdateAndGet(t *testing.T) {
+	T := NewTree(true)
 
 	tests := []struct {
 		key []byte
@@ -38,7 +89,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	T := newTree(true)
+	T := NewTree(true)
 
 	tests := []struct {
 		key []byte
@@ -86,4 +137,13 @@ func TestDelete(t *testing.T) {
 		}
 	}
 
+}
+
+func updateString(t *Tree, key string, value string) {
+	t.Update([]byte(key), []byte(value))
+}
+
+func getString(t *Tree, key string) (string, error) {
+	val, err := t.TryGet([]byte(key))
+	return string(val), err
 }

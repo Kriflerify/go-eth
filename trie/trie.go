@@ -19,7 +19,8 @@ type Tree struct {
 	nilValueNodeHash common.Hash
 }
 
-func newTree(parallel bool) *Tree {
+// NewTree constructs a tree with a map as db and sets nilValueNode
+func NewTree(parallel bool) *Tree {
 
 	t := new(Tree)
 	t.hasher = newHasher(parallel)
@@ -61,6 +62,7 @@ func (t *Tree) Update(key []byte, value []byte) error {
 func (t *Tree) insert(h common.Hash, prefix []byte, key []byte, value []byte) (common.Hash, error) {
 
 	if _, ok := t.db[h]; (h == common.Hash{}) || h == t.nilValueNodeHash || !ok {
+		//TODO make empty values work consistently
 		n := leafNode{hexToCompact(key), value}
 		newHash := t.encodeAndStore(n)
 		return newHash, nil
@@ -167,7 +169,7 @@ func (t *Tree) insert(h common.Hash, prefix []byte, key []byte, value []byte) (c
 	return h, errors.New("unexpected node type")
 }
 
-// TryGet retrieves the value associated with key
+// TryGet returns the value associated with key
 func (t *Tree) TryGet(key []byte) ([]byte, error) {
 	k := keybytesToHex(key)
 	return t.tryGet(t.root, k, 0)
@@ -301,7 +303,8 @@ func (t *Tree) delete(h common.Hash, key []byte) (node, error) {
 			return nil, errors.New("trying to delete a nonexisting key")
 		}
 
-		//from now on assume that extension used to be a branchNode
+		//extension used to be a branchNode that could be reduced
+		//to an extensionNode or a leafNode
 		newChild, err := t.delete(n.Extension, key[prefixLen:])
 		if err != nil {
 			return nil, err
