@@ -59,7 +59,7 @@ func TestRLP(t *testing.T) {
 	t.Log(enr)
 	t.Log(lnr)
 
-	t.Fail()
+	//t.Fail()
 }
 
 // TODO: Copy all tests from go-ethereum
